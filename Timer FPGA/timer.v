@@ -119,7 +119,6 @@ begin
   end
 end
 
-
     // Decrementador de tempo (minutos e segundos)
     // 1'b0 = falso
     // 1'b1 = true
@@ -146,9 +145,10 @@ always @(posedge clk1seg or posedge reset) begin
 end
 
     // Instanciação da display 7seg
-    //------------
-    // COMPLETAR
-    //------------
+  
+// já ta feito no nexys a7 100 T é só chamar como o edge detectors
+  dspl_drv_NexysA7 (.reset(reset), .clock(clock),.d1(/*paremetros são 4*/), .d2(/*paremetros são 4*/), .d3(/*paremetros são 4*/), .d4(/*paremetros são 4*/), .d5(6'b0), .d6(6'b0), .d7(6'b0), .d8(6'b0))
+  // 6'b0 é pros displays ficarem desligados
     
     
 endmodule
