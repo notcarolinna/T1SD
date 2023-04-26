@@ -1,37 +1,38 @@
 module timer
-  #(parameter HALF_MS_CONT = 50000)
+  #(parameter HALF_MS_CONT = 50000000)
 (
   // Declaração das portas
   input start,
   input pause,
   input stop,
-  input min[6:0], // min é uma entrada de 6 bits
-  input sec[6:0], // sec é uma entrada de 6 bits
+  input [6:0] min, // min é uma entrada de 7 bits
+  input [6:0] sec, // sec é uma entrada de 7 bits
   input reset,
   input clock,
-  output an[7:0],  // qual display ta selecionadp
-  output dec_cat[7:0], // numero q vai ser mostrado??
-  output reg done // precisamos guardar o valor disso até q outro seja enviado
+  output [7:0] an,  // qual display ta selecionadp
+  output [7:0] dec_cat, // numero q vai ser mostrado??
+  output done // precisamos guardar o valor disso até q outro seja enviado
 );
 
     // Declaração dos sinais
     // essas variáveis são declaradas como fio pq são os botões, os valores delas não  precisam ser guardados em nunhum lugar
-    wire start_f,
-    wire pause_f,
-    wire stop_f,
+    wire start_ed;
+    wire pause_ed;
+    wire stop_ed;
+    wire [3:0] uni_min, dez_min, uni_seg, dez_seg;
 
     reg clk_1;
     reg [31:0] cont_50K;
-    reg [6:0] min_reg, sec_reg;
-    reg [1:0] EA_reg;
-    reg [13:0] count; // contador de tempo, 14 bits para contar até 24h
-    reg done; // sinal que indica que o contador chegou a 00:00
+    reg [6:0] min_left, sec_left;
+    reg [1:0] EA;
+   
+  
     
     // Instanciação dos edge_detectors
     // isso ta no arquivo edge_detector.v aqui é só chamada dele
-  edge_detector startf (.clock(clock), .reset(reset), .din(start), .rising(start_f)); // o sinal clock conectado ao pino de entrada clock que estão instanciados no aruqivo do edge detector
-  edge_detector pausef (.clock(clock), .reset(reset), .din(pause), .rising(pause_f));
-  edge_detector stopf (.clock(clock), .reset(reset), .din(stop), .rising(stop_f));
+  edge_detector startf (.clock(clock), .reset(reset), .din(start), .rising(start_ed)); // o sinal clock conectado ao pino de entrada clock que estão instanciados no aruqivo do edge detector
+  edge_detector pausef (.clock(clock), .reset(reset), .din(pause), .rising(pause_ed));
+  edge_detector stopf (.clock(clock), .reset(reset), .din(stop), .rising(stop_ed));
   
 
     // Divisor de clock para gerar o ck1seg
@@ -48,10 +49,12 @@ module timer
           cont_50K <= 32'd0; // contador reinuciado com o valor 0
        end
       else begin
+        if (EA == 2'd1 || EA == 2'd0) begin
         cont_50K <= cont_50K + 1; // o contador é incrementado em 1 a cada ciclo de clock
+        end
       end
     end
-    end
+end
 
 // Máquina de estados para determinar o estado atual (EA)
 // reset == 1 -> IDLE 0
@@ -64,53 +67,45 @@ module timer
 always @(posedge clock or posedge reset)
 begin
 
-    // 2'b00 = IDLE
-    // 2'b01 = CD
-    // 2'B10 = PAUSED 
+    // 2'd00 = IDLE
+    // 2'd01 = CD
+    // 2'd02 = PAUSED 
     // 1'b0 = falso
     // 1'b1 = true
 
   if (reset == 1) begin
-    EA_reg <= 2'b00; // estado IDLE
-    done <= 1'b0;
-    min_reg <= 7'd0; // definindo o temporizador dos minutos em 0
-    sec_reg <= 7'd0; // definindo o temporizador dos segundos em 0
+    EA <= 2'd00; // estado IDLE
+    //min <= 7'd0; // definindo o temporizador dos minutos em 0
+    //sec <= 7'd0; // definindo o temporizador dos segundos em 0
   end
 
   else begin
 
-    case (EA_reg)
-      2'b00: // IDLE
+    case (EA)
+      2'd0: // IDLE
         begin
-          if (start == 1) begin // se o start == 1, o EA será o CD
-            EA_reg <= 2'b01; // CD 
-            done <= 1'b0;
-            min_reg <= 7'd0; 
-            sec_reg <= 7'd0; 
+          if (start_ed == 1) begin // se o start == 1, o EA será o CD
+            EA <= 2'd1; // CD 
           end
         end
 
-      2'b01: // CD 
+      2'd1: // CD 
         begin
-          if (stop == 1 || (min_reg == 7'd0 && sec_reg == 7'd0)) begin // se o stop for ativado ou timer estiver em 00:00
-            EA_reg <= 2'b00; // a máquina de estados volta para o estado IDLE
-            done <= 1'b1; 
+          if (stop_ed == 1 || (min_left == 7'd0 && sec_left == 7'd0)) begin // se o stop for ativado ou timer estiver em 00:00
+            EA <= 2'd00; // a máquina de estados volta para o estado IDLE
           end
-          else if (pause == 1) begin // se o pause for ativado
-            EA_reg <= 2'b10; // EA - Paused
-            done <= 1'b0;
+          else if (pause_ed == 1) begin // se o pause for ativado
+            EA <= 2'd02; // EA - Pause
           end
         end
         
-      2'b10: // PAUSED 
+      2'd2: // PAUSED 
         begin
-          if (pause == 1 || start == 1) begin // se pause for 1 ou o start for 1
-            EA_reg <= 2'b01; // EA - CD
-            done <= 1'b0;
+          if (pause_ed == 1 || start_ed == 1) begin // se pause for 1 ou o start for 1
+            EA <= 2'd01; // EA - CD
           end
-          else if (stop == 1) begin // se o stop for 1
-            EA_reg <= 2'b00; // EA - IDLE
-            done <= 1'b1;
+          else if (stop_ed == 1) begin // se o stop for 1
+            EA <= 2'd00; // EA - IDLE
           end
         end
 
@@ -119,36 +114,54 @@ begin
   end
 end
 
+assign done = (EA == 2'd0) ? 1'b1 : 1'b0;
+assign uni_min = (min_left%10);
+assign dez_min = (min_left/10);
+assign uni_seg = (sec_left%10);
+assign dez_seg = (sec_left/10);
+
     // Decrementador de tempo (minutos e segundos)
     // 1'b0 = falso
     // 1'b1 = true
-    // perguntar pro Tomáz quantos bits tem o contador dele
 
-always @(posedge clk1seg or posedge reset) begin
-
-  if (reset == 1'b1) begin
-    count <= {7'd0, 7'd0}; // reinicia o contador
-    done <= 1'b0; // zera o sinal done
+always @(posedge clk_1 or posedge reset) begin
+  if(reset)begin    
+    min_left <= 7'd0;
+    sec_left <= 7'd0;
   end
-
   else begin
-    if (count == 14'd0) begin
-      done <= 1'b1; // o contador chegou a 00:00
-    end
+    if(EA == 2'd0)begin
+      if(min > 7'd99)begin
+        min_left <= 7'd99;
+      end
+      else begin
+        min_left <= min;
+      end
 
-    else begin
-      count <= count - 1; // decrementa o contador a cada pulso de clock
+      if(sec > 7'd59)begin
+       sec_left <= 7'd59;
+      end
+      else begin
+       sec_left <= sec;
+      end
     end
-
+    else if(EA == 2'd1)begin
+      if(sec_left == 7'd0)begin
+          min_left <= min_left - 1; // decrementa um nos min faltantes
+          sec_left <= 7'd59;
+        end
+      else begin
+       sec_left <=sec_left - 1; // decrementa os segundos faltantes
+      end
+    end
   end
+end 
 
-end
-
-    // Instanciação da display 7seg
+  // Instanciação da display 7seg
   
 // já ta feito no nexys a7 100 T é só chamar como o edge detectors
-  dspl_drv_NexysA7 (.reset(reset), .clock(clock),.d1(/*paremetros são 4*/), .d2(/*paremetros são 4*/), .d3(/*paremetros são 4*/), .d4(/*paremetros são 4*/), .d5(6'b0), .d6(6'b0), .d7(6'b0), .d8(6'b0))
+    dspl_drv_NexysA7 driver (.reset(reset), .clock(clock), .d1({1'b1,uni_seg[3:0],1'b0}), .d2({1'b1,dez_seg[3:0],1'b0}), .d3({1'b1,uni_min[3:0],1'b0}), .d4({1'b1,dez_min[3:0],1'b0}), .d5(6'd0), .d6(6'd0), .d7(6'd0), .d8(6'd0), .an(an), .dec_cat(dec_cat));
   // 6'b0 é pros displays ficarem desligados
     
     
-endmodule
+endmodule                                                  
