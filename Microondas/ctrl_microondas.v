@@ -108,10 +108,12 @@ if(reset == 1)begin
      min <= 7'd0;
      sec <= 7'd0;
 end
-else if( EA == 2'd0)begin
-     min <= 7'd0;
-     sec <= 7'd0;
+
+else if( EA == 2'd1)begin
+    min <= 7'd0;
+   sec <= 7'd0;
 end
+
 else begin
 if(potencia == 0)begin
 
