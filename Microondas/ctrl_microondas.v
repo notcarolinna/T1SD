@@ -57,7 +57,6 @@ module ctrl_microondas
 
   if(reset == 1)begin
    EA <= 2'd0;
-   porta_ed <= 2'd0;
   end
 
   else begin
