@@ -57,6 +57,7 @@ module ctrl_microondas
 
   if(reset == 1)begin
    EA <= 2'd0;
+   porta_ed <= 2'd0;
   end
 
   else begin
@@ -104,6 +105,10 @@ module ctrl_microondas
 //SOMA E SUB DE MIN E SEC
 always@(posedge clock or posedge reset) begin
 if(reset == 1)begin
+     min <= 7'd0;
+     sec <= 7'd0;
+end
+else if( EA == 2'd0)begin
      min <= 7'd0;
      sec <= 7'd0;
 end
@@ -217,7 +222,7 @@ end
 assign dec_cat = (an_s[5] == 0) ? dec_cat_pot :
                   dec_cat_timer;
 
-assign potencia_rgb = (EA == 2'd0 && EA == 2'd2) ? 3'b000: // esse fica desligado enquanto n ser start
+assign potencia_rgb = (EA == 2'd0 || EA == 2'd2) ? 3'b000: // esse fica desligado enquanto n ser start
                       (sel_potencia == 2'd0) ? 3'b001: // esse é o azul
                       (sel_potencia == 2'd1) ? 3'b010: // esse é o verde
                       3'b100; // esse é o vermelho
