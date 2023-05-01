@@ -1,6 +1,6 @@
 module ctrl_microondas
 (
-  // Declaração das portas
+  // DeclaraÃ§Ã£o das portas
   input start,
   input stop,
   input pause,
@@ -15,8 +15,8 @@ module ctrl_microondas
 
   output [7:0] an,
   output [7:0] dec_cat,
-  output [2:0] potencia_rgb,
-  output [1:0] EA_o
+  output [2:0] potencia_rgb
+ 
 
 
 );
@@ -26,32 +26,44 @@ module ctrl_microondas
   wire stop_ed;
   wire mais_ed;
   wire menos_ed;
-  wire porta_ed;
-  wire [7:0]an_s; // vai servir para a luz da potência
+  wire [7:0]an_s; // vai servir para a luz da potÃªncia
   wire [7:0]dec_cat_timer, dec_cat_pot;
   wire done_ed;
 
   reg [1:0] EA;
   reg [6:0] min, sec;
   reg [1:0] sel_potencia;
-
-  // instanciação do timer
-  timer timepp (.clock(clock), .stop(stop_ed), .pause(pause_ed),.start(start_ed), .reset(reset), .done(done_ed), .min(min), .sec(sec), .an(an_s), .dec_cat(dec_cat_timer)); // min daqui vira o do timer
+  reg [1:0]porta_pause;
+  // instanciaÃ§Ã£o do timer
+  timer timepp (.clock(clock), .stop(stop_ed), .pause(porta_pause),.start(start_ed), .reset(reset), .done(done_ed), .min(min), .sec(sec), .an(an_s), .dec_cat(dec_cat_timer)); // min daqui vira o do timer
 
   assign an = an_s;
-  assign EA_o = ~EA;
   
-  //EDGE DETECTOR INSTANCIAÇÃO 
-  edge_detector startf (.clock(clock), .reset(reset), .din(start), .rising(start_ed)); // o sinal clock conectado ao pino de entrada clock que estão instanciados no aruqivo do edge detector
+  
+  //EDGE DETECTOR INSTANCIAÃ‡ÃƒO 
+  edge_detector startf (.clock(clock), .reset(reset), .din(start), .rising(start_ed)); // o sinal clock conectado ao pino de entrada clock que estÃ£o instanciados no aruqivo do edge detector
   edge_detector pausef (.clock(clock), .reset(reset), .din(pause), .rising(pause_ed));
   edge_detector stopf (.clock(clock), .reset(reset), .din(stop), .rising(stop_ed));
   edge_detector menosf (.clock(clock), .reset(reset), .din(menos), .rising(menos_ed));
   edge_detector maisf (.clock(clock), .reset(reset), .din(mais), .rising(mais_ed));
+  
+   always @(posedge clock or posedge reset)begin
+   if(reset == 1)begin
+    porta_pause <= 1'b0;
+   end 
+   else if(pause_ed == 1 || porta == 1)begin
+        porta_pause <= 1'b1;
+   end
+   else begin
+        porta_pause <= 1'b0;
+   end
+   end
+  
 
-  // MÁQUINA DE estados
+  // MÃ�QUINA DE estados
   always @(posedge clock or posedge reset)begin
   
-  // EA = 2'd0 -> configuraçãp
+  // EA = 2'd0 -> configuraÃ§Ã£p
   // EA = 2'd1 -> decrementa tempo
   // EA = 2'd2 -> pausa
 
@@ -70,7 +82,7 @@ module ctrl_microondas
 
       2'd1:
         begin
-          if(pause_ed == 1 || porta_ed == 1)begin
+          if(porta_pause == 1'b1)begin
             EA <= 2'd2;
           end
           else if(stop_ed == 1 || done_ed == 1 )begin 
@@ -78,9 +90,9 @@ module ctrl_microondas
           end
         end
 
-      2'd2:
+      2'd2: // EA = 2'd2 -> pausa
         begin
-          if(start_ed == 1 || pause_ed == 1)begin
+          if(start_ed == 1 || porta_pause == 1 )begin
             EA <= 2'd1;
           end
         end
@@ -126,7 +138,7 @@ if(min_mode[1])begin
         min <= min + 7'd10;
         end
     end
-    else if(menos_ed == 1)begin  // a verificação precisa ser feita se o min for == 0?
+    else if(menos_ed == 1)begin  // a verificaÃ§Ã£o precisa ser feita se o min for == 0?
       min <= min - 10;
     end
 end 
@@ -134,7 +146,7 @@ else if(min_mode[0])begin
     if(mais_ed == 1)begin
       min <= min + 1;
     end
-    else if(menos_ed == 1)begin  // a verificação precisa ser feita se o min for == 0?
+    else if(menos_ed == 1)begin  // a verificaÃ§Ã£o precisa ser feita se o min for == 0?
         if(min == 7'd0)begin
         min <= 7'd0;
         end
@@ -148,7 +160,7 @@ else if(sec_mode == 1)begin
         end
       sec <= sec + 10;
     end
-    else if(menos_ed == 1)begin  // a verificação precisa ser feita se o sec for == 0?
+    else if(menos_ed == 1)begin  // a verificaÃ§Ã£o precisa ser feita se o sec for == 0?
         if(sec == 7'd0)begin
         sec <= 7'd0;
         end
@@ -159,7 +171,7 @@ else if(sec_mode == 0)begin
    if(mais_ed == 1)begin
       sec <= sec + 1;
     end
-    else if(menos_ed == 1)begin  // a verificação precisa ser feita se o sec for == 0?
+    else if(menos_ed == 1)begin  // a verificaÃ§Ã£o precisa ser feita se o sec for == 0?
       sec <= sec - 1;
     end
   end
@@ -169,11 +181,11 @@ end
 
 
 // PORTA ABERTA OU FECHADA
-// 1'b1 = true = está aberta
-//1'b0 = false = porta está fechada
-// isso aqui é feito na máquina de estados
+// 1'b1 = true = estÃ¡ aberta
+//1'b0 = false = porta estÃ¡ fechada
+// isso aqui Ã© feito na mÃ¡quina de estados
 
-// SELEÇÃO DAS POTÊNCIAS
+// SELEÃ‡ÃƒO DAS POTÃŠNCIAS
 assign dec_cat_pot = (sel_potencia == 2'd0) ?  8'b11101111:
                       (sel_potencia == 2'd1) ? 8'b11111101:
                       8'b01111111 ;
@@ -181,7 +193,7 @@ assign dec_cat_pot = (sel_potencia == 2'd0) ?  8'b11101111:
 
 always @(posedge clock or posedge reset)begin
   if(reset == 1)begin
-    sel_potencia <= 2'd0; // nível baixo
+    sel_potencia <= 2'd0; // nÃ­vel baixo
   end
   else begin
   if(potencia == 1 && EA == 2'd0)begin
@@ -223,10 +235,10 @@ end
 assign dec_cat = (an_s[5] == 0) ? dec_cat_pot :
                   dec_cat_timer;
 
-assign potencia_rgb = (EA == 2'd0 || EA == 2'd2) ? 3'b000: // esse fica desligado enquanto n ser start
-                      (sel_potencia == 2'd0) ? 3'b001: // esse é o azul
-                      (sel_potencia == 2'd1) ? 3'b010: // esse é o verde
-                      3'b100; // esse é o vermelho
+assign potencia_rgb = (EA == 2'd0 || EA == 2'd2 || porta_pause == 1'b1) ? 3'b000: // esse fica desligado enquanto n ser start
+                      (sel_potencia == 2'd0) ? 3'b001: // esse Ã© o azul
+                      (sel_potencia == 2'd1) ? 3'b010: // esse Ã© o verde
+                      3'b100; // esse Ã© o vermelho
 
 
 
